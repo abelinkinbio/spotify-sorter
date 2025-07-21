@@ -1,0 +1,15 @@
+name = "spotify-playlist-sorter"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Add your Spotify app details here
+SPOTIFY_REDIRECT_URI = "https://spotify-playlist-sorter.abraham-carryl.workers.dev/callback"
+
+[[kv_namespaces]]
+binding = "SPOTIFY_TOKENS"
+id = "42fb955e7bc14bec85e3baacc1ac59d8" # You'll get this ID when you create the namespace
+
+# Add these as secrets using wrangler:
+# wrangler secret put SPOTIFY_CLIENT_ID
+# wrangler secret put SPOTIFY_CLIENT_SECRET
