@@ -1,121 +1,137 @@
-# Spotify Playlist Sorter
+# Bosworth v3 - Spotify Playlist Sorter
 
-A Cloudflare Worker application that helps you organize your Spotify Liked Songs into playlists with a drag-and-drop interface.
+A listening party experience for organizing your Spotify music library. Built with Cloudflare Workers.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
+![Blueprint Design](https://img.shields.io/badge/Design-Blueprint-blue)
+![Cloudflare Workers](https://img.shields.io/badge/Platform-Cloudflare%20Workers-orange)
 
 ## Features
 
-- 🎵 **Drag & Drop**: Easily drag songs from Your Liked playlist to any of your playlists
-- ✅ **Bulk Operations**: Select multiple songs and move them all at once
-- 🎧 **Song Previews**: Listen to 10-second previews before sorting
-- 📊 **Analytics Dashboard**: View your top artists, tracks, genres, and listening statistics
+- **🎧 Listening Party Mode** - Preview tracks and sort them with auto-play
+- **⚡ Auto-Remove** - Songs automatically leave your Liked playlist when sorted
+- **📊 AI Insights** - Get personalized analysis of your listening habits
+- **⏱ Session Tracking** - Count-up timer with session summaries
+- **🎨 Blueprint UI** - Technical drawing aesthetic with IBM Plex Mono
+
+## Tech Stack
+
+- **Cloudflare Workers** - Serverless compute
+- **Cloudflare KV** - OAuth token storage
+- **Cloudflare D1** - Session history database
+- **Cloudflare Workers AI** - Listening insights generation
+- **Spotify Web API** - Music data and playlist management
 
 ## Prerequisites
 
-To deploy your own instance of this application, you'll need:
+1. [Node.js](https://nodejs.org) installed
+2. [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
+3. A [Spotify Developer](https://developer.spotify.com/dashboard) account with an app created
 
-1. A [Cloudflare account](https://dash.cloudflare.com/sign-up)
-2. A [Spotify Developer account](https://developer.spotify.com/dashboard)
-3. Node.js installed on your computer
-4. Wrangler CLI (`npm install -g wrangler`)
+## Setup
 
-## Setup Instructions
-
-### 1. Create a Spotify App
-
-1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Click "Create app"
-3. Fill in the app details:
-   - **App name**: Spotify Playlist Sorter (or your choice)
-   - **App description**: Personal playlist organization tool
-   - **Website**: Leave blank
-   - **Redirect URI**: Will be added after deployment
-4. Click "Save"
-5. Note your **Client ID** and **Client Secret**
-
-### 2. Clone this Repository
+### 1. Clone and Install
 
 ```bash
-git clone https://github.com/abelinkinbio/spotify-playlist-sorter.git
-cd spotify-playlist-sorter
+cd bosworth-v3
+npm install -g wrangler  # If not already installed
+wrangler login           # Authenticate with Cloudflare
 ```
 
-### 3. Configure Wrangler
+### 2. Configure Spotify App
 
-1. Login to Cloudflare:
-   ```bash
-   wrangler login
+In your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard):
+
+1. Select your app (or create one)
+2. Go to **Settings** → **Edit Settings**
+3. Add a **Redirect URI**:
    ```
-
-2. Create a KV namespace:
-   ```bash
-   wrangler kv namespace create SPOTIFY_TOKENS
+   https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev/callback
    ```
+4. Save your changes
+5. Copy your **Client ID** and **Client Secret**
 
-3. Update `wrangler.toml` with:
-   - Your KV namespace ID
-   - Your worker subdomain (after first deployment)
-
-### 4. Deploy the Worker
-
-1. Deploy to get your Worker URL:
-   ```bash
-   wrangler deploy
-   ```
-
-2. Update `wrangler.toml` with your Worker URL:
-   ```toml
-   [vars]
-   SPOTIFY_REDIRECT_URI = "https://spotify-playlist-sorter.YOUR-SUBDOMAIN.workers.dev/callback"
-   ```
-
-3. Add this same URL to your Spotify app's redirect URIs
-
-### 5. Add Secrets
+### 3. Set Secrets
 
 ```bash
-# Add your Spotify Client ID
 wrangler secret put SPOTIFY_CLIENT_ID
+# Paste your Client ID when prompted
 
-# Add your Spotify Client Secret
 wrangler secret put SPOTIFY_CLIENT_SECRET
+# Paste your Client Secret when prompted
+
+wrangler secret put SPOTIFY_REDIRECT_URI
+# Enter: https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev/callback
 ```
 
-### 6. Final Deployment
+### 4. Deploy
 
 ```bash
 wrangler deploy
 ```
 
-Visit your Worker URL and start organizing your music
+Your app will be live at: `https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev`
 
-## Project Structure
+## Usage
+
+### Listening Party
+
+1. Visit your deployed URL
+2. Click **Connect with Spotify**
+3. Authorize the app
+4. Start dragging songs from **Liked Songs** to your playlists
+5. Songs auto-play on click for preview
+6. Click **End Session** to see your summary
+
+### Analytics
+
+- View your top artists, tracks, and genres
+- Filter by time period (4 weeks, 6 months, all time)
+- Get AI-generated insights about your music taste
+- See your session history
+
+## Troubleshooting
+
+### "Failed to remove from Liked Songs"
+
+Make sure your Spotify app has the `user-library-modify` scope. You may need to re-authenticate.
+
+### "Session expired"
+
+Sessions last 24 hours. Simply log in again.
+
+### Songs not appearing
+
+The app loads 50 liked songs at a time. Click "Load More" to fetch additional songs.
+
+## Local Development
+
+```bash
+wrangler dev
+```
+
+Note: OAuth won't work locally without a tunnel. Use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or deploy to test authentication.
+
+## Architecture
 
 ```
-spotify-playlist-sorter/
-├── index.js        # Main Worker code
-├── wrangler.toml   # Cloudflare Worker configuration
-└── README.md       # This file
+┌─────────────────────────────────────────────────────────────┐
+│                      Cloudflare Worker                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐    │
+│  │  OAuth  │   │  Proxy  │   │   AI    │   │ Session │    │
+│  │  Flow   │   │ Spotify │   │Insights │   │ Storage │    │
+│  └────┬────┘   └────┬────┘   └────┬────┘   └────┬────┘    │
+│       │             │             │             │          │
+│       ▼             ▼             ▼             ▼          │
+│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐    │
+│  │   KV    │   │ Spotify │   │ Workers │   │   D1    │    │
+│  │ Storage │   │   API   │   │   AI    │   │Database │    │
+│  └─────────┘   └─────────┘   └─────────┘   └─────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Configuration
+## License
 
-The `wrangler.toml` file contains:
-- Worker name and entry point
-- KV namespace binding for session storage
-- Environment variables for the redirect URI
-
-## How It Works
-
-1. **OAuth Flow**: Users authenticate with Spotify
-2. **Session Management**: Tokens stored in Cloudflare KV
-3. **API Proxy**: Worker proxies all Spotify API requests
-4. **Frontend**: Single-page application served by the Worker
-5. **Access**: (Optional) Secured by Cloudflare Access
-
-## Acknowledgments
-
-- Built with [Cloudflare Workers](https://workers.cloudflare.com/)
-- Uses [Spotify Web API](https://developer.spotify.com/documentation/web-api/)
+MIT

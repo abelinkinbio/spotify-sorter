@@ -1,9 +1,12 @@
-# Node modules
+# Dependencies
 node_modules/
 
 # Wrangler
 .wrangler/
 .dev.vars
+
+# Local config with real resource IDs
+wrangler.local.toml
 
 # Environment files
 .env
@@ -21,11 +24,3 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-
-# Temporary files
-*.tmp
-*.temp
-
-# Never commit secrets!
-secrets.txt
-credentials.json
