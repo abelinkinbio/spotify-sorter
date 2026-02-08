@@ -1,135 +1,120 @@
-# Bosworth v3 - Spotify Playlist Sorter
+# 🎧 bosworth
 
-A listening party experience for organizing your Spotify music library. Built with Cloudflare Workers.
+Your Liked Songs playlist feels like a giant to-do list. You know you should sort them, but actually doing it feels like a chore. This tool lets you play them directly in the browser via Spotify's Web Playback SDK. You hear each song one by one and sort them into the right playlist with a single click. Like a productive jam session.
 
-![Blueprint Design](https://img.shields.io/badge/Design-Blueprint-blue)
-![Cloudflare Workers](https://img.shields.io/badge/Platform-Cloudflare%20Workers-orange)
+## How It Works
 
-## Features
-
-- **🎧 Listening Party Mode** - Preview tracks and sort them with auto-play
-- **⚡ Auto-Remove** - Songs automatically leave your Liked playlist when sorted
-- **📊 AI Insights** - Get personalized analysis of your listening habits
-- **⏱ Session Tracking** - Count-up timer with session summaries
-- **🎨 Blueprint UI** - Technical drawing aesthetic with IBM Plex Mono
-
-## Tech Stack
-
-- **Cloudflare Workers** - Serverless compute
-- **Cloudflare KV** - OAuth token storage
-- **Cloudflare D1** - Session history database
-- **Cloudflare Workers AI** - Listening insights generation
-- **Spotify Web API** - Music data and playlist management
-
-## Prerequisites
-
-1. [Node.js](https://nodejs.org) installed
-2. [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
-3. A [Spotify Developer](https://developer.spotify.com/dashboard) account with an app created
-
-## Setup
-
-### 1. Clone and Install
-
-```bash
-cd bosworth-v3
-npm install -g wrangler  # If not already installed
-wrangler login           # Authenticate with Cloudflare
-```
-
-### 2. Configure Spotify App
-
-In your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard):
-
-1. Select your app (or create one)
-2. Go to **Settings** → **Edit Settings**
-3. Add a **Redirect URI**:
-   ```
-   https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev/callback
-   ```
-4. Save your changes
-5. Copy your **Client ID** and **Client Secret**
-
-### 3. Set Secrets
-
-```bash
-wrangler secret put SPOTIFY_CLIENT_ID
-# Paste your Client ID when prompted
-
-wrangler secret put SPOTIFY_CLIENT_SECRET
-# Paste your Client Secret when prompted
-
-wrangler secret put SPOTIFY_REDIRECT_URI
-# Enter: https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev/callback
-```
-
-### 4. Deploy
-
-```bash
-wrangler deploy
-```
-
-Your app will be live at: `https://spotify-playlist-sorter.YOUR_SUBDOMAIN.workers.dev`
-
-## Usage
-
-### Listening Party
-
-1. Visit your deployed URL
-2. Click **Connect with Spotify**
-3. Authorize the app
-4. Start dragging songs from **Liked Songs** to your playlists
-5. Songs auto-play on click for preview
-6. Click **End Session** to see your summary
-
-### Analytics
-
-- View your top artists, tracks, and genres
-- Filter by time period (4 weeks, 6 months, all time)
-- Get AI-generated insights about your music taste
-- See your session history
-
-## Troubleshooting
-
-### "Failed to remove from Liked Songs"
-
-Make sure your Spotify app has the `user-library-modify` scope. You may need to re-authenticate.
-
-### "Session expired"
-
-Sessions last 24 hours. Simply log in again.
-
-### Songs not appearing
-
-The app loads 50 liked songs at a time. Click "Load More" to fetch additional songs.
-
-## Local Development
-
-```bash
-wrangler dev
-```
-
-Note: OAuth won't work locally without a tunnel. Use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or deploy to test authentication.
+1. Connect your Spotify Premium account
+2. Songs from your Liked library auto-play in the browser
+3. Tap a playlist to sort — or skip to move on
+4. Sorted songs are removed from Liked Songs
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Cloudflare Worker                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐    │
-│  │  OAuth  │   │  Proxy  │   │   AI    │   │ Session │    │
-│  │  Flow   │   │ Spotify │   │Insights │   │ Storage │    │
-│  └────┬────┘   └────┬────┘   └────┬────┘   └────┬────┘    │
-│       │             │             │             │          │
-│       ▼             ▼             ▼             ▼          │
-│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐    │
-│  │   KV    │   │ Spotify │   │ Workers │   │   D1    │    │
-│  │ Storage │   │   API   │   │   AI    │   │Database │    │
-│  └─────────┘   └─────────┘   └─────────┘   └─────────┘    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Browser                                    │
+│  ┌────────────────┐  ┌───────────────────┐  │
+│  │ Bosworth UI    │  │ Spotify Web       │  │
+│  │ (card sorter)  │  │ Playback SDK      │  │
+│  └───────┬────────┘  └───────┬───────────┘  │
+│          │                   │              │
+└──────────┼───────────────────┼──────────────┘
+           │ /api/*            │ streaming
+           ▼                   ▼
+┌──────────────────┐  ┌─────────────────┐
+│ Cloudflare       │  │ Spotify         │
+│ Worker           │  │ Connect         │
+│ (OAuth + proxy)  │  │ (audio)         │
+│      │           │  └─────────────────┘
+│      ▼           │
+│ ┌──────────┐     │
+│ │ KV Store │     │
+│ │ (tokens) │     │
+│ └──────────┘     │
+└──────────────────┘
+```
+
+**Cloudflare Worker** — Runs at the edge (nearest data center to the user). Handles OAuth login, proxies Spotify API calls, and serves the UI. One file, no build step.
+
+**Cloudflare KV** — A globally distributed key-value store. Stores OAuth session tokens so your browser stays logged in. Tokens auto-expire after 24 hours.
+
+**Spotify Web Playback SDK** — Turns the browser tab into a Spotify Connect device. Full track playback, not 30-second previews. Requires Spotify Premium.
+
+## Setup
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) installed
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+- A [Spotify Developer](https://developer.spotify.com/dashboard) app with **Web API** and **Web Playback SDK** enabled
+- Spotify Premium subscription
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/abelinkinbio/spotify-sorter.git
+cd spotify-sorter
+npm install -g wrangler    # if not already installed
+npx wrangler login         # authenticate with Cloudflare
+```
+
+### 2. Create a KV namespace
+
+```bash
+npx wrangler kv namespace create SPOTIFY_TOKENS
+```
+
+This outputs a namespace ID. Copy `wrangler.toml.example` to `wrangler.toml` and paste in your ID:
+
+```bash
+cp wrangler.toml.example wrangler.toml
+```
+
+```toml
+[[kv_namespaces]]
+binding = "SPOTIFY_TOKENS"
+id = "<paste your namespace ID here>"
+```
+
+Your `wrangler.toml` is gitignored so your resource IDs stay local.
+
+### 3. Set secrets
+
+```bash
+npx wrangler secret put SPOTIFY_CLIENT_ID
+npx wrangler secret put SPOTIFY_CLIENT_SECRET
+npx wrangler secret put SPOTIFY_REDIRECT_URI
+```
+
+Your redirect URI should match what's registered in your Spotify Developer Dashboard, e.g. `https://your-worker.workers.dev/callback` or `https://your-custom-domain.com/callback`.
+
+### 4. Configure Spotify
+
+In your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard):
+
+- Add your redirect URI under **Redirect URIs**
+- Ensure both **Web API** and **Web Playback SDK** are checked under **APIs used**
+
+### 5. Deploy
+
+```bash
+npx wrangler deploy
+```
+
+### 6. (Optional) Custom domain
+
+If you want to serve from a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cloudflare dashboard under **Workers & Pages → your worker → Settings → Domains & Routes**.
+
+Remember to update your `SPOTIFY_REDIRECT_URI` secret and Spotify Dashboard to match the new domain.
+
+## Updating
+
+```bash
+git add .
+git commit -m "your message"
+git push
+npx wrangler deploy
 ```
 
 ## License
